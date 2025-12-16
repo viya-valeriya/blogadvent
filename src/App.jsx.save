@@ -1,0 +1,641 @@
+import React, { useState, useEffect } from 'react';
+import { 
+  Lock, Sparkles, X, Gift, TreePine,
+  Coffee, CloudSun, Heart, Feather, Compass, Cat, Shield, 
+  Smile, ShoppingBag, BatteryCharging, Wind, Clock, 
+  BookOpen, Rocket, Moon, Crown, Users, Puzzle, PartyPopper,
+  Music, Sun
+} from 'lucide-react'; 
+import { initializeApp } from 'firebase/app';
+import { 
+  getAuth, 
+  signInAnonymously, 
+  onAuthStateChanged,
+  signInWithCustomToken 
+} from 'firebase/auth';
+import { 
+  getFirestore, 
+  collection, 
+  doc, 
+  setDoc, 
+  onSnapshot, 
+  serverTimestamp 
+} from 'firebase/firestore';
+
+// --- КОНФИГУРАЦИЯ FIREBASE ---
+const firebaseConfig = {
+  apiKey: "AIzaSyCOHeMkOIwG0ddkwh3zz4o5pyfR97jPS50",
+  authDomain: "adventlp.firebaseapp.com",
+  projectId: "adventlp",
+  storageBucket: "adventlp.firebasestorage.app",
+  messagingSenderId: "1025160764098",
+  appId: "1:1025160764098:web:35d99c13486ece5753f95b",
+  measurementId: "G-SNGM8LTHJX"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const appId = 'blogadvent-v1';
+const appId =
+  typeof window !== 'undefined' && window.__app_id
+    ? window.__app_id
+    : 'blogadvent-v1';
+
+  ? window.__app_id
+  : 'default-app-id';
+
+// --- ЦВЕТОВАЯ ПАЛИТРА ---
+const COLORS = {
+  white: '#ffffff',
+  dawnPink: '#f1eae0',
+  tuatara: '#363636',
+  fireEngineRed: '#c82926',
+  kimberly: '#706c91',
+  rodeoDust: '#c7b895',
+  bone: '#e3dbca',
+  forestGreen: '#2f855a',
+};
+
+// --- СПИСОК ПОЖЕЛАНИЙ ---
+const WISHES_POOL = [
+  "Ты — автор своей истории, даже если сейчас сложная глава - самое время писать следующую!",
+  "Найди сегодня минуту размеренности — такой, как когда наблюдаешь за снежинками и просто дышишь.",
+  "Устрой себе 30 минут ничегонеделания — побудь в моменте без задач, спешки и тревоги. Насладись моментом.",
+  "Подари себе сегодня немного тепла — позвони близкому или обними того, кто рядом.",
+  "Найди время для уединения с хорошей книгой.",
+  "Открой день для нового знакомства — маленького, но вдохновляющего.",
+  "Пополни запас энергии — чем-то вкусным, тёплым или приятным.",
+  "Отметь своё достижение — даже если оно крошечное, оно твоё.",
+  "Сделай паузу ради качественного отдыха, а не «на бегу».",
+  "Устрой себе маленький ритуал, который повышает качество жизни.",
+  "Позаботься о себе так же качественно, как о проекте.",
+  "Скажи себе что-то доброе — так, как сказал бы в поддержку коллегe.",
+  "Спроси себя: Что бы я сделал для друга? — и сделай это для себя.",
+  "Пожелай кому-то хорошего дня — искренне.",
+  "Сделай сегодня маленький смелый шаг.",
+  "Прими решение, которое давно откладывал.",
+  "Сделай шаг к тому, кем хочешь быть в новом году.",
+  "Найди то, что делает тебя особенным — и улыбнись этому.",
+  "Отмечай необычные мысли — там источник творчества.",
+  "Позволь себе быть «странным» ровно настолько, чтобы чувствовать себя.",
+  "Прими комплимент своей неповторимости.",
+  "Признай, что ты сегодня чувствуешь — без фильтров.",
+  "Скажи себе правду про свои желания.",
+  "Прими похвалу честно, без обесценивания.",
+  "Спроси себя: “Что мне на самом деле нужно сейчас?”",
+  "Признай свою силу — без скромности.",
+  "Узнай сегодня что-то новое — пусть даже одну строчку.",
+  "Сделай шаг вперёд там, где обычно сомневаешься.",
+  "Посмотри на задачу под другим углом.",
+  "Спроси у себя: “Что новое я могу попробовать сегодня?”",
+  "Сделай одну вещь, которая делает тебя лучше, чем вчера.",
+  "Отметь, где ты уже вырос как человек?",
+  "Позволь себе ошибаться — ради роста.",
+  "Подумай о версии себя через год — и сделай шаг к ней.",
+  "Найди лучик света в своём дне — он точно есть.",
+  "Вспомни, что всегда есть путь, даже если его пока не видно.",
+  "Подумай о будущем, которое греет.",
+  "Посмотри на что-то красивое — и почувствуй лёгкость.",
+  "Сделай что-то, что дарит ощущение «всё будет хорошо».",
+  "Позволь себе поверить, что впереди много хорошего.",
+  "Сделай сегодня что-то, что вдохновляет тебя хотя бы на 1%.",
+  "Слушай музыку, которая поднимает настроение.",
+  "Зажги свечу и создай атмосферу для творчества.",
+  "Позволь себе мечтать чуть смелее.",
+  "Почувствуй красоту момента — даже если он короткий.",
+  "Устрой себе пяти минутку творческого хаоса.",
+  "Делай что-то с огоньком — даже если это мелочь.",
+  "Сделай что-то качественное ради будущего себя.",
+  "Вдохнови себя мыслью, что у тебя получается.",
+  "Позволь уникальности вести тебя в решениях.",
+  "Приложи лидерство там, где нужен маленький шаг вперёд.",
+  "Поддержи коллегу — как поддержал(а) бы себя.",
+  "Заметь рост, который произошёл незаметно.",
+  "Выбери действие, которое делает тебя лучше.",
+  "Отдавай сегодня свет, который хочешь получать.",
+  "Поймай вдохновение в простом моменте.",
+  "Прислушайся к себе честно — и сделай вывод мягко.",
+  "Удели внимание тому, что делает тебя уникальным человеком.",
+  "Найди сегодня минуту тишины — такую, в которой слышно, как декабрь успокаивает воздух.",
+  "Позволь себе замедлиться так, будто за окном впервые пошёл снег.",
+  "Подари себе ощущение начала — как утром первого января.",
+  "Сделай глоток горячего напитка и почувствуй, как возвращается спокойствие.",
+  "Скажи себе добрые слова так, будто кладёшь их под новогоднюю ёлку.",
+  "Подари себе ощущение обновления — будто год вот-вот сменится.",
+  "Посмотри на огоньки вокруг и отметь то, что зажигает внутри тебя.",
+  "Позволь себе мечтать шире — декабрь любит мечты.",
+  "Устрой 30 минут уюта — плед, тишина и ты.",
+  "Представь, что этот день — подарок. Открой его медленно, насладись.",
+  "Найди силу в себе — ту самую, которая помогает загадывать желания.",
+  "Подари себе немного веры в лучшее — как в новогоднюю ночь.",
+  "Заметь свет вокруг: в словах, людях, моментах.",
+  "Отметь всё, что ты прожил(а) в этом году — и поблагодари себя.",
+  "Позволь себе выдохнуть — как будто закрываешь последний рабочий день года.",
+  "Создай себе атмосферу, в которой хочется быть.",
+  "Вдохни глубже — воздух декабря всегда чище.",
+  "Посмотри на свой путь, как на гирлянду из маленьких побед.",
+  "Зажги свою внутреннюю «лампочку» — вдохновением или заботой.",
+  "Устрой себе аромат праздника — тем, что любишь именно ты.",
+  "Представь, что каждый шаг сегодня — шаг в новый год.",
+  "Найди что-то, что делает этот день особенным.",
+  "Услышь своё желание — то самое, настоящее.",
+  "Сделай доброе действие для себя — как подарок в декабре.",
+  "Устрой мини-очищение: выброси одну ненужную мысль.",
+  "Поддержи себя так, как поддерживают в праздничные вечера.",
+  "Посмотри на свою жизнь глазами человека, который тебя любит.",
+  "Дай себе пространство, чтобы мечтать о следующем годе.",
+  "Обними свою сегодняшнюю версию — она достойна тепла.",
+  "Попроси у декабря то, чего хочешь — и будь готов(а) это принять.",
+  "Выбери сегодня одно маленькое удовольствие и сделай его обязательным.",
+  "Вспомни, чем ты гордишься в себе — и побудь с этим.",
+  "Найди место в дне, где можно вдохнуть свежий воздух.",
+  "Поддержи себя тёплыми словами, которые обычно говоришь другим.",
+  "Попроси у дня подсказку — и будь открытым к её получению.",
+  "Обними свою сегодняшнюю версию — в ней твоя точка опоры."
+];
+
+// --- ИКОНКА ПО СМЫСЛУ ТЕКСТА ---
+const getThematicIllustration = (text) => {
+  const props = { size: 48, strokeWidth: 1.5 };
+  const lowerText = text.toLowerCase();
+  
+  if (lowerText.includes("кофе") || lowerText.includes("чай") || lowerText.includes("паузу") || lowerText.includes("отдых") || lowerText.includes("ничегонеделания") || lowerText.includes("напитка") || lowerText.includes("уют")) return <Coffee {...props} color="#795548" />;
+  if (lowerText.includes("солнце") || lowerText.includes("свет") || lowerText.includes("тепла") || lowerText.includes("луч") || lowerText.includes("огоньки") || lowerText.includes("лампочку")) return <Sun {...props} color="#F59E0B" />;
+  if (lowerText.includes("сердце") || lowerText.includes("любовь") || lowerText.includes("обними") || lowerText.includes("себя") || lowerText.includes("любишь") || lowerText.includes("словами")) return <Heart {...props} color="#c82926" />;
+  if (lowerText.includes("снежинк") || lowerText.includes("небо") || lowerText.includes("тишин") || lowerText.includes("атмосферу") || lowerText.includes("снег") || lowerText.includes("декабрь")) return <CloudSun {...props} color="#706c91" />;
+  if (lowerText.includes("творчеств") || lowerText.includes("вдохнов") || lowerText.includes("мысли") || lowerText.includes("хаос") || lowerText.includes("мечтать")) return <Feather {...props} color="#c82926" />;
+  if (lowerText.includes("ошибк") || lowerText.includes("пазл") || lowerText.includes("решение") || lowerText.includes("очищение")) return <Puzzle {...props} color="#706c91" />;
+  if (lowerText.includes("кот") || lowerText.includes("животное")) return <Cat {...props} color="#363636" />;
+  if (lowerText.includes("нет") || lowerText.includes("границы") || lowerText.includes("защит") || lowerText.includes("опоры")) return <Shield {...props} color="#363636" />;
+  if (lowerText.includes("покупк") || lowerText.includes("магазин")) return <ShoppingBag {...props} color="#c82926" />;
+  if (lowerText.includes("энерги") || lowerText.includes("заряд") || lowerText.includes("сил")) return <BatteryCharging {...props} color="#706c91" />;
+  if (lowerText.includes("улыб") || lowerText.includes("смех") || lowerText.includes("радость") || lowerText.includes("хорошо") || lowerText.includes("счастливым") || lowerText.includes("удовольствие")) return <Smile {...props} color="#F59E0B" />;
+  if (lowerText.includes("дыши") || lowerText.includes("ветер") || lowerText.includes("воздух") || lowerText.includes("выдохни")) return <Wind {...props} color="#706c91" />;
+  if (lowerText.includes("время") || lowerText.includes("минут") || lowerText.includes("часы") || lowerText.includes("темп") || lowerText.includes("замедлиться")) return <Clock {...props} color="#363636" />;
+  if (lowerText.includes("книг") || lowerText.includes("чита") || lowerText.includes("автор") || lowerText.includes("глава") || lowerText.includes("истори")) return <BookOpen {...props} color="#795548" />;
+  if (lowerText.includes("шаг") || lowerText.includes("вперед") || lowerText.includes("старт") || lowerText.includes("действи") || lowerText.includes("начала")) return <Rocket {...props} color="#c82926" />;
+  if (lowerText.includes("компас") || lowerText.includes("путь") || lowerText.includes("направлени") || lowerText.includes("контроль") || lowerText.includes("подсказку")) return <Compass {...props} color="#c82926" />;
+  if (lowerText.includes("чудо") || lowerText.includes("маги") || lowerText.includes("искренне") || lowerText.includes("огоньком") || lowerText.includes("волшебство")) return <Sparkles {...props} color="#F59E0B" />;
+  if (lowerText.includes("важен") || lowerText.includes("король") || lowerText.includes("достижение") || lowerText.includes("похвал") || lowerText.includes("лидерство") || lowerText.includes("побед") || lowerText.includes("гордишься")) return <Crown {...props} color="#F59E0B" />;
+  if (lowerText.includes("праздник") || lowerText.includes("вечерин") || lowerText.includes("ритуал") || lowerText.includes("ёлку") || lowerText.includes("новый год")) return <PartyPopper {...props} color="#c82926" />;
+  if (lowerText.includes("друг") || lowerText.includes("коллег") || lowerText.includes("люд") || lowerText.includes("знакомств")) return <Users {...props} color="#706c91" />;
+  if (lowerText.includes("музык") || lowerText.includes("песн") || lowerText.includes("слушай")) return <Music {...props} color="#c82926" />;
+  if (lowerText.includes("свеч") || lowerText.includes("огонь")) return <Sun {...props} color="#F59E0B" />;
+  return <Gift {...props} color="#c82926" />;
+};
+
+export default function AdventCalendar() {
+  const [user, setUser] = useState(null);
+  const [openedDays, setOpenedDays] = useState({});
+  const [modalData, setModalData] = useState(null);
+  const [toastMessage, setToastMessage] = useState(null);
+  const [currentDate, setCurrentDate] = useState(1);
+
+  // Определяем текущий день для блокировки будущего
+  useEffect(() => {
+    const now = new Date();
+    const month = now.getMonth(); // 0-11
+    const day = now.getDate();
+
+    if (month < 11) {
+      setCurrentDate(0);
+    } else if (month === 11) {
+      setCurrentDate(day);
+    } else {
+      setCurrentDate(31);
+    }
+  }, []);
+
+  // Авторизация Firebase
+  useEffect(() => {
+    const initAuth = async () => {
+      const token =
+        typeof window !== 'undefined' && window.__initial_auth_token
+          ? window.__initial_auth_token
+          : null;
+
+      if (token) {
+        await signInWithCustomToken(auth, token);
+      } else {
+        await signInAnonymously(auth);
+      }
+    };
+
+    initAuth();
+    const unsubscribe = onAuthStateChanged(auth, setUser);
+    return () => unsubscribe();
+  }, []);
+
+  // Загрузка прогресса
+  useEffect(() => {
+    if (!user) return;
+    const progressRef = collection(
+      db,
+      'artifacts',
+      appId,
+      'users',
+      user.uid,
+      'advent_progress'
+    );
+    const unsubscribe = onSnapshot(
+      progressRef,
+      (snapshot) => {
+        const data = {};
+        snapshot.docs.forEach((docSnap) => {
+          data[docSnap.id] = docSnap.data().message;
+        });
+        setOpenedDays(data);
+      },
+      (error) => console.error('Error fetching progress:', error)
+    );
+    return () => unsubscribe();
+  }, [user]);
+
+  // Авто-скрытие тоста
+  useEffect(() => {
+    if (toastMessage) {
+      const timer = setTimeout(() => setToastMessage(null), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [toastMessage]);
+
+  // Блокировка скролла фона, когда открыта модалка
+  useEffect(() => {
+    if (!modalData) return;
+    const original = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = original;
+    };
+  }, [modalData]);
+
+  const handleDayClick = async (dayNumber) => {
+    if (!user) return;
+
+    if (dayNumber > currentDate) {
+      setToastMessage('Этот день еще не настал');
+      return;
+    }
+
+    if (openedDays[dayNumber]) {
+      setModalData({
+        day: dayNumber,
+        text: openedDays[dayNumber],
+        isNew: false,
+      });
+      return;
+    }
+
+    const receivedWishes = Object.values(openedDays);
+    const availableWishes = WISHES_POOL.filter(
+      (w) => !receivedWishes.includes(w)
+    );
+    const pool = availableWishes.length > 0 ? availableWishes : WISHES_POOL;
+    const randomWish = pool[Math.floor(Math.random() * pool.length)];
+
+    try {
+      const dayDocRef = doc(
+        db,
+        'artifacts',
+        appId,
+        'users',
+        user.uid,
+        'advent_progress',
+        String(dayNumber)
+      );
+      await setDoc(dayDocRef, {
+        day: dayNumber,
+        message: randomWish,
+        openedAt: serverTimestamp(),
+      });
+      setModalData({ day: dayNumber, text: randomWish, isNew: true });
+    } catch (e) {
+      console.error('Error saving wish:', e);
+    }
+  };
+
+  const closeModal = () => setModalData(null);
+
+  const daysGrid = Array.from({ length: 31 }, (_, i) => i + 1);
+
+  return (
+    <div
+      style={{
+        minHeight: '100vh',
+        width: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        backgroundColor: COLORS.dawnPink,
+        color: COLORS.tuatara,
+        fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, sans-serif',
+        boxSizing: 'border-box',
+        paddingBottom: '32px',
+      }}
+    >
+      {/* Шапка */}
+      <header
+        style={{
+          width: '100%',
+          maxWidth: 480,
+          padding: 24,
+          paddingTop: 32,
+          textAlign: 'center',
+        }}
+      >
+        <div style={{ marginBottom: 16 }}>
+          <div
+            style={{
+              display: 'inline-block',
+              backgroundColor: '#ffffff',
+              padding: 8,
+              borderRadius: 12,
+              boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+              border: '1px solid #e5e5e5',
+            }}
+          >
+            <span
+              style={{
+                fontSize: 12,
+                fontWeight: 700,
+                letterSpacing: '0.18em',
+                color: '#363636',
+              }}
+            >
+              LIFEPRACTIC
+            </span>
+          </div>
+        </div>
+        <h1
+          style={{
+            fontSize: 24,
+            fontWeight: 700,
+            lineHeight: 1.2,
+            marginBottom: 8,
+          }}
+        >
+          Адвент-календарь
+          <br />
+          команды LifePractic
+        </h1>
+        <p
+          style={{
+            fontSize: 13,
+            opacity: 0.7,
+            fontWeight: 500,
+          }}
+        >
+          31 день маленьких радостей и пожеланий
+        </p>
+      </header>
+
+      {/* Сетка календаря */}
+      <main
+        style={{
+          width: '100%',
+          maxWidth: 480,
+          padding: 16,
+          paddingBottom: 40,
+          boxSizing: 'border-box',
+        }}
+      >
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
+            gap: 12,
+          }}
+        >
+          {daysGrid.map((day) => {
+            const isFuture = day > currentDate;
+            const isOpened = !!openedDays[day];
+            const isAvailable = !isFuture && !isOpened;
+            const isFancyTree = day > 15;
+            const treeColor = isFancyTree ? COLORS.fireEngineRed : COLORS.forestGreen;
+
+            return (
+              <button
+                key={day}
+                onClick={() => handleDayClick(day)}
+                disabled={false}
+                style={{
+                  aspectRatio: '4 / 5',
+                  borderRadius: 18,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  position: 'relative',
+                  transition: 'transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease',
+                  cursor: isFuture ? 'not-allowed' : 'pointer',
+                  backgroundColor: isOpened
+                    ? COLORS.bone
+                    : isFuture
+                    ? COLORS.dawnPink
+                    : COLORS.white,
+                  border: isAvailable
+                    ? `2px solid ${COLORS.fireEngineRed}`
+                    : isFuture
+                    ? '1px solid rgba(199, 184, 149, 0.6)'
+                    : '1px solid transparent',
+                  boxShadow: isAvailable
+                    ? '0 4px 12px rgba(200, 41, 38, 0.15)'
+                    : 'none',
+                  opacity: isFuture ? 0.8 : 1,
+                }}
+              >
+                <span
+                  style={{
+                    fontWeight: 600,
+                    zIndex: 1,
+                    fontSize: 16,
+                    color: isFuture ? COLORS.rodeoDust : COLORS.tuatara,
+                    opacity: isFuture ? 0.6 : 1,
+                  }}
+                >
+                  {day}
+                </span>
+
+                <div style={{ marginTop: 4 }}>
+                  {isFuture && (
+                    <Lock
+                      size={14}
+                      color={COLORS.rodeoDust}
+                      style={{ opacity: 0.7 }}
+                    />
+                  )}
+                  {isOpened && (
+                    <div
+                      style={{
+                        position: 'relative',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <TreePine size={16} color={treeColor} />
+                      {isFancyTree && (
+                        <Sparkles
+                          size={10}
+                          color={COLORS.rodeoDust}
+                          style={{
+                            position: 'absolute',
+                            top: -4,
+                            right: -4,
+                          }}
+                        />
+                      )}
+                    </div>
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </main>
+
+      {/* ТОСТ */}
+      {toastMessage && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1000,
+            pointerEvents: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <div
+            style={{
+              pointerEvents: 'auto',
+              backgroundColor: '#363636',
+              color: '#ffffff',
+              padding: '8px 16px',
+              borderRadius: 999,
+              boxShadow: '0 10px 30px rgba(0,0,0,0.35)',
+              fontSize: 13,
+              fontWeight: 500,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <Lock size={16} color="#e3dbca" />
+            {toastMessage}
+          </div>
+        </div>
+      )}
+
+      {/* МОДАЛЬНОЕ ОКНО */}
+      {modalData && (
+        <div
+          onClick={closeModal}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0,0,0,0.45)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: 16,
+            boxSizing: 'border-box',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: '#ffffff',
+              borderRadius: 24,
+              padding: 24,
+              width: '100%',
+              maxWidth: 420,
+              boxShadow: '0 20px 40px rgba(0,0,0,0.25)',
+              position: 'relative',
+              textAlign: 'center',
+            }}
+          >
+            <button
+              onClick={closeModal}
+              style={{
+                position: 'absolute',
+                top: 12,
+                right: 12,
+                border: 'none',
+                background: 'rgba(0,0,0,0.04)',
+                borderRadius: 999,
+                padding: 4,
+                cursor: 'pointer',
+              }}
+            >
+              <X size={18} color={COLORS.tuatara} />
+            </button>
+
+            <div
+              style={{
+                marginBottom: 20,
+                backgroundColor: COLORS.dawnPink,
+                padding: 16,
+                borderRadius: '999px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: 'inset 0 0 8px rgba(0,0,0,0.04)',
+              }}
+            >
+              {getThematicIllustration(modalData.text)}
+            </div>
+
+            <h3
+              style={{
+                fontSize: 20,
+                fontWeight: 700,
+                marginBottom: 8,
+                color: COLORS.tuatara,
+              }}
+            >
+              День {modalData.day}
+            </h3>
+
+            <div
+              style={{
+                width: 48,
+                height: 4,
+                borderRadius: 999,
+                backgroundColor: 'rgba(200,41,38,0.2)',
+                margin: '0 auto 20px',
+              }}
+            />
+
+            <p
+              style={{
+                fontSize: 16,
+                lineHeight: 1.5,
+                marginBottom: 24,
+                color: COLORS.tuatara,
+              }}
+            >
+              «{modalData.text}»
+            </p>
+
+            <button
+              onClick={closeModal}
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                borderRadius: 12,
+                border: 'none',
+                fontWeight: 600,
+                fontSize: 15,
+                color: '#ffffff',
+                backgroundColor: COLORS.fireEngineRed,
+                cursor: 'pointer',
+                boxShadow: '0 8px 18px rgba(200,41,38,0.3)',
+              }}
+            >
+              Вернуться к календарю
+     
