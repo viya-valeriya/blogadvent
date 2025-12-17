@@ -1,59 +1,59 @@
 export default async function handler(req, res) {
+  // Telegram всегда шлёт POST. На GET отвечаем 200, чтобы удобно пинговать.
   if (req.method !== "POST") {
-    return res.status(200).send("OK");
+    return res.status(200).send("ok");
   }
 
-  const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+  const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
   const WEBAPP_URL = process.env.WEBAPP_URL;
 
-  if (!TOKEN || !WEBAPP_URL) {
-    return res.status(500).json({ error: "Missing TELEGRAM_BOT_TOKEN or WEBAPP_URL env vars" });
+  if (!BOT_TOKEN) {
+    console.error("Missing TELEGRAM_BOT_TOKEN env");
+    return res.status(500).send("Missing TELEGRAM_BOT_TOKEN");
+  }
+  if (!WEBAPP_URL) {
+    console.error("Missing WEBAPP_URL env");
+    return res.status(500).send("Missing WEBAPP_URL");
   }
 
-  const update = req.body || {};
-  const message = update.message || update.edited_message;
-  const text = message?.text || "";
-  const chatId = message?.chat?.id;
-
-  // если это не сообщение — просто ок
-  if (!chatId) return res.status(200).send("OK");
-
-  // кнопка WebApp
-  const keyboard = {
-    inline_keyboard: [
-      [{ text: "Открыть календарь", web_app: { url: WEBAPP_URL } }],
-    ],
-  };
-
-  const sendMessage = async (payload) => {
-    const resp = await fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    return resp.json();
-  };
-
   try {
-    // /start или любой стартовый текст
-    if (text.startsWith("/start")) {
-      await sendMessage({
-        chat_id: chatId,
-        text: "Готово ✨ Жми кнопку ниже — откроется адвент.",
-        reply_markup: keyboard,
-      });
-    } else {
-      // на любые другие сообщения тоже даем кнопку (чтобы пользователь не потерялся)
-      await sendMessage({
-        chat_id: chatId,
-        text: "Я тут 🙂 Открыть календарь?",
-        reply_markup: keyboard,
-      });
+    const update = req.body || {};
+    const message = update.message;
+
+    // Обрабатываем только обычные сообщения (нам достаточно /start)
+    if (!message || !message.chat || !message.text) {
+      return res.status(200).send("ok");
     }
 
-    return res.status(200).send("OK");
+    const chatId = message.chat.id;
+    const text = String(message.text).trim();
+
+    if (text === "/start" || text.startsWith("/start")) {
+      const payload = {
+        chat_id: chatId,
+        text: "Готово ✨ Нажми кнопку, чтобы открыть календарь.",
+        reply_markup: {
+          keyboard: [[{ text: "Открыть календарь", web_app: { url: WEBAPP_URL } }]],
+          resize_keyboard: true,
+          one_time_keyboard: false
+        }
+      };
+
+      const tgRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      const tgJson = await tgRes.json();
+      if (!tgJson.ok) {
+        console.error("Telegram sendMessage failed:", tgJson);
+      }
+    }
+
+    return res.status(200).send("ok");
   } catch (e) {
-    console.error(e);
-    return res.status(500).json({ error: "Bot handler failed" });
+    console.error("bot handler error:", e);
+    return res.status(200).send("ok");
   }
 }
