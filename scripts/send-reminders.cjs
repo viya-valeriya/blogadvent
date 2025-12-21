@@ -15,15 +15,16 @@ if (!Array.isArray(subscribers) || subscribers.length === 0) {
 }
 
 async function main() {
+
   const text =
-    "Новый день блог-адвента уже открыт! 🎄\n\n" +
-    "Открыть блог-адвент: https://viya-blogadvent.vercel.app";
+    "Новый день Адвента уже открыт! 🎄\n\n" +
+    "Открыть календарь: https://viya-blogadvent.vercel.app";
 
   for (const chatId of subscribers) {
-    console.log(`Sending to ${chatId}...`);
+    console.log(\`Sending to \${chatId}...\`);
 
     try {
-      const res = await fetch(`${TELEGRAM_API}/sendMessage`, {
+      const res = await fetch(\`\${TELEGRAM_API}/sendMessage\`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -35,12 +36,12 @@ async function main() {
       const body = await res.text();
 
       if (!res.ok) {
-        console.error(`Error for ${chatId}:`, res.status, body);
+        console.error(\`Error for \${chatId}:\`, res.status, body);
       } else {
-        console.log(`OK for ${chatId}:`, body);
+        console.log(\`OK for \${chatId}:\`, body);
       }
     } catch (err) {
-      console.error(`Unexpected error for ${chatId}:`, err);
+      console.error(\`Unexpected error for \${chatId}:\`, err);
     }
   }
 }
