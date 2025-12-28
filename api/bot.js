@@ -11,7 +11,9 @@ export default async function handler(req, res) {
     const ADMIN_CHAT_ID = process.env.ADMIN_CHAT_ID;
     const WEBAPP_URL = process.env.WEBAPP_URL || "https://viya-blogadvent.vercel.app";
 
-    if (!BOT_TOKEN) return res.status(500).json({ ok: false, error: "Missing TELEGRAM_BOT_TOKEN" });
+    if (!BOT_TOKEN) {
+      return res.status(500).json({ ok: false, error: "Missing TELEGRAM_BOT_TOKEN" });
+    }
 
     const update = req.body || {};
     const message = update.message || update.edited_message;
@@ -20,7 +22,7 @@ export default async function handler(req, res) {
     const chat = message?.chat || callbackQuery?.message?.chat;
     const chatId = chat?.id;
 
-    // Быстро отвечаем Telegram'у, чтобы не ждать наших сетевых запросов
+    // Быстро отвечаем Telegram'у, чтобы не ждать сетевых запросов
     res.status(200).json({ ok: true });
 
     if (!chatId) return;
@@ -53,7 +55,9 @@ export default async function handler(req, res) {
         "X-GitHub-Api-Version": "2022-11-28",
       };
 
+      // retry on sha mismatch (parallel starts)
       for (let attempt = 1; attempt <= 5; attempt++) {
+        // 1) read current file (or create if absent)
         const getUrl = `${apiBase}/repos/${repo}/contents/${encodeURIComponent(filePath)}?ref=${encodeURIComponent(branch)}`;
         const getRes = await fetch(getUrl, { headers });
         let sha = null;
@@ -104,6 +108,7 @@ export default async function handler(req, res) {
           return { ok: true, added: after > before, total: after };
         }
 
+        // sha mismatch race -> retry
         const putText = await putRes.text();
         if (putRes.status === 409 || putRes.status === 422) {
           continue;
@@ -114,24 +119,26 @@ export default async function handler(req, res) {
       return { ok: false, reason: "retry_exhausted" };
     }
 
+    // /id helper
     if (lower === "/id" || lower.startsWith("/id ")) {
       await tgSend(chatId, { text: `Твой chat_id: ${chatId}` });
       return;
     }
 
+    // /start
     if (lower === "/start" || lower.startsWith("/start")) {
-      // Добавляем в подписчики через GitHub
+      // Добавляем пользователя в список подписчиков через GitHub
       const ghResult = await upsertSubscriberInGithub(chatId);
 
-      // Если хотим хоть какой-то ответ — делаем его простым
+      // Ответ пользователю — только текст + кнопка
       await tgSend(chatId, {
-        text: "🎄 Открыть адвент",
+        text: "✨ Нажми кнопку, чтобы открыть календарь.",
         reply_markup: {
-          inline_keyboard: [[{ text: "Открыть адвент", url: WEBAPP_URL }]],
+          inline_keyboard: [[{ text: "Открыть календарь", url: WEBAPP_URL }]],
         },
       });
 
-      // Опционально: уведомление админу
+      // Опционально: уведомление админу о новом /start
       if (ADMIN_CHAT_ID) {
         await tgSend(ADMIN_CHAT_ID, {
           text:
