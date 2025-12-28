@@ -20,7 +20,7 @@ export default async function handler(req, res) {
     const chat = message?.chat || callbackQuery?.message?.chat;
     const chatId = chat?.id;
 
-    // Always ack telegram quickly
+    // Быстро отвечаем Telegram'у, чтобы не ждать наших сетевых запросов
     res.status(200).json({ ok: true });
 
     if (!chatId) return;
@@ -53,9 +53,7 @@ export default async function handler(req, res) {
         "X-GitHub-Api-Version": "2022-11-28",
       };
 
-      // retry on sha mismatch (parallel starts)
       for (let attempt = 1; attempt <= 5; attempt++) {
-        // 1) read current file (or create if absent)
         const getUrl = `${apiBase}/repos/${repo}/contents/${encodeURIComponent(filePath)}?ref=${encodeURIComponent(branch)}`;
         const getRes = await fetch(getUrl, { headers });
         let sha = null;
@@ -106,7 +104,6 @@ export default async function handler(req, res) {
           return { ok: true, added: after > before, total: after };
         }
 
-        // sha mismatch race -> retry
         const putText = await putRes.text();
         if (putRes.status === 409 || putRes.status === 422) {
           continue;
@@ -117,42 +114,29 @@ export default async function handler(req, res) {
       return { ok: false, reason: "retry_exhausted" };
     }
 
-    // /id helper
     if (lower === "/id" || lower.startsWith("/id ")) {
       await tgSend(chatId, { text: `Твой chat_id: ${chatId}` });
       return;
     }
 
-    // /start
     if (lower === "/start" || lower.startsWith("/start")) {
-      const username = chat?.username ? `@${chat.username}` : "(no username)";
-      const firstName = chat?.first_name || "";
-      const lastName = chat?.last_name || "";
-      const fullName = `${firstName} ${lastName}`.trim();
-
-      // 1) add to subscribers automatically (GitHub commit)
+      // Добавляем в подписчики через GitHub
       const ghResult = await upsertSubscriberInGithub(chatId);
 
-      // 2) reply user
+      // Если хотим хоть какой-то ответ — делаем его простым
       await tgSend(chatId, {
-        text:
-          `Привет! ✨\n\n` +
-          `Открыть адвент: ${WEBAPP_URL}\n\n` +
-          `Ты добавлена(ен) в рассылку: ${ghResult.ok ? "да ✅" : "пока нет ⚠️"}\n` +
-          (ghResult.ok ? `Всего подписчиков: ${ghResult.total}` : `Причина: ${ghResult.reason || "unknown"}`),
+        text: "🎄 Открыть адвент",
         reply_markup: {
-          inline_keyboard: [[{ text: "🎄 Открыть адвент", url: WEBAPP_URL }]],
+          inline_keyboard: [[{ text: "Открыть адвент", url: WEBAPP_URL }]],
         },
       });
 
-      // 3) ping admin (optional)
+      // Опционально: уведомление админу
       if (ADMIN_CHAT_ID) {
         await tgSend(ADMIN_CHAT_ID, {
           text:
             `🧾 /start\n` +
             `chat_id: ${chatId}\n` +
-            `user: ${username}\n` +
-            `name: ${fullName || "(no name)"}\n` +
             `github_sync: ${ghResult.ok ? "ok" : "fail"} ${ghResult.reason || ""}\n` +
             `date: ${new Date().toISOString()}`,
         });
