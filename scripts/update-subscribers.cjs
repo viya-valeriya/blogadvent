@@ -9,11 +9,11 @@ if (!BOT_TOKEN) {
 }
 
 const TELEGRAM_API = `https://api.telegram.org/bot${BOT_TOKEN}`;
-const subscribersPath = path.join(__dirname, "subscribers.json");
+const subscribersPath = path.join(__dirname, "blog-subscribers.json");
 
 function loadSubscribers() {
   if (!fs.existsSync(subscribersPath)) {
-    console.log("subscribers.json not found, creating new one");
+    console.log("blog-subscribers.json not found, creating new one");
     return new Set();
   }
   const raw = fs.readFileSync(subscribersPath, "utf8");
@@ -22,7 +22,7 @@ function loadSubscribers() {
     if (!Array.isArray(arr)) throw new Error("Not an array");
     return new Set(arr.map(Number));
   } catch (e) {
-    console.error("Failed to parse subscribers.json:", e);
+    console.error("Failed to parse blog-subscribers.json:", e);
     process.exit(1);
   }
 }
@@ -34,7 +34,7 @@ function saveSubscribers(set) {
     JSON.stringify(arr, null, 2),
     "utf8"
   );
-  console.log(`Saved ${arr.length} subscribers to scripts/subscribers.json`);
+  console.log(`Saved ${arr.length} subscribers to blog-subscribers.json`);
 }
 
 async function main() {
@@ -56,10 +56,9 @@ async function main() {
   }
 
   const newIds = new Set();
-  const unsubscribed = new Set();
 
   for (const update of data.result) {
-    // Личные сообщения
+    // Личные сообщения (message.chat.id)
     if (
       update.message &&
       update.message.chat &&
@@ -67,45 +66,18 @@ async function main() {
     ) {
       newIds.add(update.message.chat.id);
     }
-
-    // Изменение статуса бота в чате (подписка / блокировка)
-    if (
-      update.my_chat_member &&
-      update.my_chat_member.chat &&
-      update.my_chat_member.chat.type === "private"
-    ) {
-      const chatId = update.my_chat_member.chat.id;
-      const status = update.my_chat_member.new_chat_member.status;
-
-      if (status === "member") {
-        newIds.add(chatId);
-      }
-
-      if (status === "kicked" || status === "left") {
-        unsubscribed.add(chatId);
-      }
-    }
   }
 
-  console.log(`Found ${newIds.size} ids from updates.`);
-  console.log(`Found ${unsubscribed.size} unsubscribed ids.`);
+  console.log(`Found ${newIds.size} chat ids from messages.`);
 
-  // Добавляем всех новых
+  // ТОЛЬКО добавляем новых, никого не удаляем
   for (const id of newIds) {
     existing.add(id);
   }
 
-  // Убираем тех, кто отписался/заблокировал бота
-  for (const id of unsubscribed) {
-    if (existing.has(id)) {
-      existing.delete(id);
-      console.log(`Removed unsubscribed id: ${id}`);
-    }
-  }
-
   saveSubscribers(existing);
 
-  console.log("Done. Now run git add/commit/push to persist changes.");
+  console.log("Done. Now run git add/commit/push to persist changes if needed.");
 }
 
 main().catch((err) => {
