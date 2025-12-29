@@ -1,5 +1,5 @@
 const fetch = require("node-fetch");
-const subscribers = require("./subscribers.json");
+const subscribers = require("../blog-subscribers.json");
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const TELEGRAM_API = `https://api.telegram.org/bot${BOT_TOKEN}`;
@@ -10,11 +10,10 @@ if (!BOT_TOKEN) {
 }
 
 if (!Array.isArray(subscribers) || subscribers.length === 0) {
-  console.error("No subscribers in scripts/notifications/subscribers.json");
+  console.error("No subscribers in scripts/blog-subscribers.json");
   process.exit(1);
 }
 
-// Канонический URL календаря для ВСЕХ входов:
 const CALENDAR_URL = "https://viya-blogadvent.vercel.app";
 
 async function main() {
